@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NullDen Helper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#17151f; --panel:#201d2c; --line:#322e45; --text:#ebe8f4; --muted:#8f8aa8;
+  --accent:#a99bff; --accent-ink:#17151f; --me:#2c2745; --err:#ff8a8a;
+  --sans:'Bricolage Grotesque',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f4f2fb; --panel:#fff; --line:#dcd8ec; --text:#211d33; --muted:#6c6786;
+    --accent:#5b46d6; --accent-ink:#fff; --me:#e6e1fa; --err:#c43b3b;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.55;
+  display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line)}
+.brand{font-weight:800;font-size:1.25rem;letter-spacing:-.02em}
+.brand span{color:var(--accent)}
+header button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font:inherit;font-size:.85rem;cursor:pointer}
+header button:hover{color:var(--text);border-color:var(--muted)}
+#log{flex:1;overflow-y:auto;padding:24px 16px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.empty{margin-top:12vh;max-width:30ch}
+.empty h1{font-size:2.4rem;line-height:1.05;letter-spacing:-.03em;margin:0 0 10px;font-weight:800}
+.empty p{color:var(--muted);margin:0}
+.msg{max-width:88%;padding:11px 15px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:var(--me);border-bottom-right-radius:4px}
+.msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.err{color:var(--err)}
+.msg img{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-bottom:8px}
+.msg code{font-family:var(--mono);font-size:.88em;background:var(--bg);padding:1px 5px;border-radius:4px}
+.msg pre{margin:8px 0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:pre}
+.msg pre code{background:none;padding:0}
+.dots::after{content:'';display:inline-block;width:.6em;height:.6em;border-radius:50%;background:var(--accent);animation:p 1s infinite alternate}
+@keyframes p{to{opacity:.2;transform:scale(.6)}}
+@media (prefers-reduced-motion:reduce){.dots::after{animation:none}}
+form{border-top:1px solid var(--line);padding:12px 16px}
+.bar{max-width:760px;margin:0 auto}
+#preview{display:none;margin-bottom:8px;position:relative;width:fit-content}
+#preview img{height:72px;border-radius:8px;border:1px solid var(--line);display:block}
+#preview button{position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;border:none;background:var(--accent);color:var(--accent-ink);cursor:pointer;line-height:1}
+.row{display:flex;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px}
+.row:focus-within{border-color:var(--accent)}
+textarea{flex:1;resize:none;border:none;outline:none;background:none;color:var(--text);font:inherit;max-height:160px;padding:6px 4px}
+.ib,.send{border:none;border-radius:10px;cursor:pointer;font:inherit;height:38px;flex:none}
+.ib{width:38px;background:none;color:var(--muted);font-size:1.2rem}
+.ib:hover{color:var(--text)}
+.send{background:var(--accent);color:var(--accent-ink);padding:0 16px;font-weight:600}
+.send:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">NullDen <span>Helper</span></div>
+  <div><button id="newchat" type="button">New chat</button> <button id="keybtn" type="button">API key</button></div>
+</header>
+
+<main id="log"><div class="wrap" id="msgs">
+  <div class="empty" id="empty"><h1>Ask anything. Show me a picture.</h1><p>NullDen Helper reads text and images.</p></div>
+</div></main>
+
+<form id="form">
+  <div class="bar">
+    <div id="preview"><img id="pimg" alt="Attached image"><button type="button" id="rm" aria-label="Remove image">×</button></div>
+    <div class="row">
+      <button type="button" class="ib" id="attach" aria-label="Attach image">+</button>
+      <input type="file" id="file" accept="image/*" hidden>
+      <textarea id="input" rows="1" placeholder="Message NullDen Helper" aria-label="Message"></textarea>
+      <button class="send" id="send" type="submit">Send</button>
+    </div>
+  </div>
+</form>
+
+<script>
+// ---- Settings ---------------------------------------------------------
+// Paste your Google AI Studio key here, or leave as-is and the page will ask for it
+// (it is then saved only in that visitor's browser).
+const API_KEY = "PASTE_YOUR_KEY_HERE";
+const MODEL = "gemini-2.5-flash";
+const SYSTEM = "You are NullDen Helper, the friendly assistant for the NullDen website. Be clear, helpful and concise.";
+// -----------------------------------------------------------------------
+
+const $ = id => document.getElementById(id);
+const msgs = $('msgs'), log = $('log'), input = $('input'), sendBtn = $('send');
+let history = [], image = null, busy = false;
+
+function getKey(){
+  if (API_KEY && !API_KEY.startsWith("PASTE")) return API_KEY;
+  try { return localStorage.getItem('nd_key') || ''; } catch(e){ return ''; }
+}
+function askKey(){
+  const k = prompt('Enter your Gemini API key (stored only in this browser):');
+  if (k && k.trim()) { try { localStorage.setItem('nd_key', k.trim()); } catch(e){} return k.trim(); }
+  return '';
+}
+$('keybtn').onclick = askKey;
+$('newchat').onclick = () => { history = []; msgs.innerHTML = ''; msgs.appendChild($('empty')); $('empty').style.display = ''; clearImage(); };
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function render(t){
+  let h = esc(t);
+  h = h.replace(/```(?:\w+)?\n?([\s\S]*?)(```|$)/g, (_, c) => '<pre><code>' + c.replace(/\n$/,'') + '</code></pre>');
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  return h;
+}
+function addMsg(cls, html){
+  $('empty').style.display = 'none';
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls; d.innerHTML = html;
+  msgs.appendChild(d); log.scrollTop = log.scrollHeight;
+  return d;
+}
+
+// Images
+function setImage(file){
+  if (!file || !file.type.startsWith('image/')) return;
+  const r = new FileReader();
+  r.onload = () => {
+    image = { mime: file.type, data: r.result.split(',')[1], url: r.result };
+    $('pimg').src = r.result; $('preview').style.display = 'block';
+  };
+  r.readAsDataURL(file);
+}
+function clearImage(){ image = null; $('preview').style.display = 'none'; $('file').value = ''; }
+$('attach').onclick = () => $('file').click();
+$('file').onchange = e => setImage(e.target.files[0]);
+$('rm').onclick = clearImage;
+input.addEventListener('paste', e => {
+  const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
+  if (f) { e.preventDefault(); setImage(f); }
+});
+
+input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = input.scrollHeight + 'px'; });
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form').requestSubmit(); }
+});
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if ((!text && !image) || busy) return;
+  let key = getKey() || askKey();
+  if (!key) { addMsg('bot err', 'Add your Gemini API key to start chatting.'); return; }
+
+  const parts = [];
+  if (image) parts.push({ inline_data: { mime_type: image.mime, data: image.data } });
+  if (text) parts.push({ text });
+  history.push({ role: 'user', parts });
+  addMsg('user', (image ? `<img src="${image.url}" alt="Attached image">` : '') + esc(text));
+  input.value = ''; input.style.height = 'auto'; clearImage();
+
+  busy = true; sendBtn.disabled = true;
+  const bot = addMsg('bot', '<span class="dots"></span>');
+  let full = '';
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM }] }, contents: history })
+    });
+    if (!res.ok) {
+      let m = res.statusText;
+      try { m = (await res.json()).error.message; } catch(_){}
+      throw new Error(m);
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const l of lines) {
+        if (!l.startsWith('data:')) continue;
+        try {
+          const j = JSON.parse(l.slice(5));
+          full += (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+          bot.innerHTML = render(full) || '<span class="dots"></span>';
+          log.scrollTop = log.scrollHeight;
+        } catch(_){}
+      }
+    }
+    if (!full) throw new Error('No response (the reply may have been blocked). Try rephrasing.');
+    history.push({ role: 'model', parts: [{ text: full }] });
+  } catch (err) {
+    history.pop();
+    bot.classList.add('err');
+    bot.textContent = 'Something went wrong: ' + err.message;
+  } finally {
+    busy = false; sendBtn.disabled = false; input.focus();
+  }
+});
+</script>
+</body>
+</html>
